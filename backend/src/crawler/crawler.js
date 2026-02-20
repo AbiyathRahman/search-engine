@@ -1,3 +1,6 @@
+const fetch = require('node-fetch');
+const https = require('https');
+const http = require('http');
 const { getDb } = require('../services/db');
 const URLFrontier = require('./urlFrontier');
 const Parser = require('./parser');
@@ -11,7 +14,7 @@ class Crawler {
         this.crawlCount = 0;
     }
 
-    intit(seedUrls) {
+    init(seedUrls) {
         console.log(`\nInitializing crawler with ${seedUrls.length} seed URLs...`);
         seedUrls.forEach(url => {
             this.frontier.enqueue(url, 10); // High priority for seed urls
@@ -41,6 +44,32 @@ class Crawler {
     }
 
     async crawlPage(url) {
+        // Use appropriate agent for http vs https
+        const options = {};
+        if (url.startsWith('https://')) {
+            // Disable SSL verification for development (not recommended for production)
+            options.agent = new https.Agent({ rejectUnauthorized: false });
+        } else if (url.startsWith('http://')) {
+            options.agent = new http.Agent();
+        }
+
+        // Add timeout and error handling for malformed URLs
+        options.timeout = 10000;
+        
+        let response;
+        try {
+            response = await fetch(url, options);
+        } catch (err) {
+            // Skip URLs that cause protocol or connection errors
+            if (err.message.includes('Protocol') || err.message.includes('not supported')) {
+                console.log(`Skipped malformed URL: ${url}`);
+                return;
+            }
+            throw err;
+        }
+        
+        const html = await response.text();
+
         const { title, content, snippet } = this.parser.extractText(html);
         const links = this.parser.extractLinks(html, url);
 

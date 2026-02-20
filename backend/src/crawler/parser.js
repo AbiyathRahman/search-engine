@@ -23,10 +23,14 @@ class Parser {
         const $ = cheerio.load(html);
         const links = new Set();
 
-        $('a[href').each((i, elem) => {
+        $('a[href]').each((i, elem) => {
             try {
                 const href = $(elem).attr('href');
-                if (!href) return;
+                if (!href || href.trim() === '') return;
+
+                // Skip incomplete URLs like "http:" or "https:"
+                if (href.match(/^https?:$/)) return;
+
                 const absoluteUrl = new URL(href, baseUrl).href;
 
                 if (absoluteUrl.startsWith('http://') || absoluteUrl.startsWith('https://')) {
